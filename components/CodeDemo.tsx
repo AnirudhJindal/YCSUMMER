@@ -197,7 +197,7 @@ function MacCodeCard({
               minWidth: 48,
             }}
           >
-            {code.join("")}
+           
             {(() => {
               const lineCount = code.reduce((acc, t) => acc + (t.text.match(/\n/g) || []).length, 0);
               return Array.from({ length: Math.max(lineCount, 1) }, (_, i) => (
