@@ -37,6 +37,7 @@ function RoughBorder({ id, stroke = "#1c1917" }: { id: string; stroke?: string }
 export default function WaitlistCTA() {
   const ref = useRef(null);
   const [isMounted, setIsMounted] = useState(false);
+
   useEffect(() => setIsMounted(true), []);
 
   const { scrollYProgress } = useScroll({
@@ -61,7 +62,7 @@ export default function WaitlistCTA() {
       {/* Outer border */}
       <RoughBorder id="cta-outer" />
 
-      {/* ❌ NO SCROLL — static vertical lines */}
+      {/* Vertical lines */}
       <div
         style={{
           position: "absolute",
@@ -77,7 +78,6 @@ export default function WaitlistCTA() {
             left: "clamp(16px, 4vw, 48px)",
             width: 4,
             background: "#1c1917",
-            opacity: 1,
           }}
         />
         <div
@@ -88,7 +88,6 @@ export default function WaitlistCTA() {
             right: "clamp(16px, 4vw, 48px)",
             width: 4,
             background: "#1c1917",
-            opacity: 1,
           }}
         />
       </div>
@@ -97,7 +96,7 @@ export default function WaitlistCTA() {
       <motion.div
         style={{
           y: isMounted ? marqueeY : 0,
-          borderBottom: "4px solid #1c1917", // ✅ UPDATED
+          borderBottom: "4px solid #1c1917",
           overflow: "hidden",
           padding: "20px 0",
         }}
@@ -192,7 +191,14 @@ export default function WaitlistCTA() {
         >
           <RoughBorder id="cta-btn" />
 
+          {/* ✅ UPDATED BUTTON */}
           <motion.button
+            onClick={() => {
+              window.scrollTo({
+                top: 0,
+                behavior: "smooth",
+              });
+            }}
             whileHover={{ y: -4, scale: 1.02 }}
             whileTap={{ scale: 0.96 }}
             transition={{ type: "spring", stiffness: 300 }}
