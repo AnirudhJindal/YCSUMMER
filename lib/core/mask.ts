@@ -8,6 +8,12 @@ import {
   isLikelyPassword,
   isLikelyOTP,
   isLikelyBank,
+  isIFSC,
+  isAadhaar,
+  isPAN,
+  isAPIKey,
+  isExpiry,
+  isCVV,
 } from "../pattern/validators";
 
 import { buildKeywordQueue } from "../context/keywordQueue";
@@ -51,6 +57,12 @@ function isValidForType(value: string, type: string) {
   if (type === "PASSWORD") return !isEmail(value) && !isUPI(value) && isLikelyPassword(value);
   if (type === "OTP") return isLikelyOTP(value);
   if (type === "BANK") return isLikelyBank(value);
+  if (type === "IFSC") return isIFSC(value);
+  if (type === "AADHAAR") return isAadhaar(value);
+  if (type === "PAN") return isPAN(value);
+  if (type === "APIKEY") return isAPIKey(value);
+  if (type === "EXPIRY") return isExpiry(value);
+  if (type === "CVV") return isCVV(value);
   return false;
 }
 
@@ -161,6 +173,83 @@ export function mask(text: string) {
     const token = `__CARD_${uuidv4()}__`;
     map[token] = match;
     return token;
+  });
+
+  // IFSC — fixed format, no context needed
+  masked = masked.replace(/\b[A-Z]{4}0[A-Z0-9]{6}\b/g, (match) => {
+    if (match.includes("__")) return match;
+    if (!isIFSC(match)) return match;
+
+    const token = `__IFSC_${uuidv4()}__`;
+    map[token] = match;
+    return token;
+  });
+
+  // PAN — fixed format, no context needed
+  masked = masked.replace(/\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b/g, (match) => {
+    if (match.includes("__")) return match;
+    if (!isPAN(match)) return match;
+
+    const token = `__PAN_${uuidv4()}__`;
+    map[token] = match;
+    return token;
+  });
+
+  // AADHAAR — needs context to avoid false positives
+  masked = masked.replace(/\b[2-9][0-9]{11}\b/g, (match, offset) => {
+    if (match.includes("__")) return match;
+
+    const context = masked
+      .slice(Math.max(0, offset - 30), offset)
+      .toLowerCase();
+
+    if (!/(aadhaar|aadhar|uid)/.test(context)) return match;
+    if (!isAadhaar(match)) return match;
+
+    const token = `__AADHAAR_${uuidv4()}__`;
+    map[token] = match;
+    return token;
+  });
+
+  // API KEYS — strong pattern, no context needed
+  masked = masked.replace(/\b(sk|pk|rk|key)[-_][A-Za-z0-9]{20,}\b/g, (match) => {
+    if (match.includes("__")) return match;
+
+    const token = `__APIKEY_${uuidv4()}__`;
+    map[token] = match;
+    return token;
+  });
+
+  // CVV — needs context
+  masked = masked.replace(/\b\d{3,4}\b/g, (match, offset) => {
+    if (match.includes("__")) return match;
+
+    const context = masked
+      .slice(Math.max(0, offset - 20), offset)
+      .toLowerCase();
+
+    if (!/(cvv|cvc|csc)/.test(context)) return match;
+    if (!isCVV(match)) return match;
+
+    const token = `__CVV_${uuidv4()}__`;
+    map[token] = match;
+    return token;
+  });
+
+  // EXPIRY — needs context, handles MM/YY and MM/YYYY
+  masked = masked.replace(/(^|[\s,])(0[1-9]|1[0-2])[\/\-]([0-9]{2}|[0-9]{4})([\s,]|$)/g, (match, pre, month, year, post, offset) => {
+    if (match.includes("__")) return match;
+
+    const actualValue = `${month}/${year}`;
+    const contextStart = Math.max(0, offset - 30);
+    const context = masked.slice(contextStart, offset).toLowerCase();
+
+    if (!/(expiry|expiration|expires|valid till|valid thru|exp)/.test(context)) return match;
+    if (!isExpiry(actualValue)) return match;
+
+    const token = `__EXPIRY_${uuidv4()}__`;
+    map[token] = actualValue;
+    return `${pre}${token}${post}`;
   });
 
   return { masked, map };

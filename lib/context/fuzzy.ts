@@ -11,9 +11,15 @@ function clean(word: string) {
 export const KEYWORD_GROUPS = {
   EMAIL: ["email", "mail", "emails"],
   UPI: ["upi", "gpay", "phonepe", "paytm"],
-  OTP: ["otp", "code", "pin"],
+  OTP: ["otp", "code", "pin", "verification"],
   BANK: ["account", "acc", "acnt"],
+  IFSC: ["ifsc", "swift", "routing"],
+  AADHAAR: ["aadhaar", "aadhar", "uid"],
+  PAN: ["pan", "pancard"],
   PASSWORD: ["password", "pwd", "pass", "passwrod"],
+  APIKEY: ["apikey", "secret", "token"],
+  EXPIRY: ["expiry", "expiration", "expires"],
+  CVV: ["cvv", "cvc", "csc"],
 };
 
 export function matchKeyword(word: string) {
@@ -21,14 +27,22 @@ export function matchKeyword(word: string) {
 
   if (IGNORE_WORDS.includes(cleaned)) return null;
 
-  for (const type of ["EMAIL", "UPI", "OTP", "BANK", "PASSWORD"] as const) {
+  // exact match — full priority order
+  for (const type of [
+    "EMAIL", "UPI", "OTP", "IFSC", "AADHAAR", "PAN",
+    "BANK", "APIKEY", "EXPIRY", "CVV", "PASSWORD"
+  ] as const) {
     const keywords = KEYWORD_GROUPS[type];
     for (const keyword of keywords) {
       if (cleaned === keyword) return type;
     }
   }
 
-  for (const type of ["EMAIL", "UPI", "OTP", "BANK", "PASSWORD"] as const) {
+  // fuzzy match — same priority order
+  for (const type of [
+    "EMAIL", "UPI", "OTP", "IFSC", "AADHAAR", "PAN",
+    "BANK", "APIKEY", "EXPIRY", "CVV", "PASSWORD"
+  ] as const) {
     const keywords = KEYWORD_GROUPS[type];
     for (const keyword of keywords) {
       if (fuzzy(cleaned, keyword) >= THRESHOLD) return type;
