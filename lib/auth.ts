@@ -13,5 +13,15 @@ export async function validateApiKey(req: Request) {
   });
 
   if (!key || !key.active) return null;
+
+  // increment request count
+  await prisma.apiKey.update({
+    where: { id: key.id },
+    data: {
+      requests: { increment: 1 },
+      lastUsedAt: new Date(),
+    },
+  });
+
   return key;
 }
