@@ -1,37 +1,26 @@
+import { validateApiKey } from "@/lib/auth";
+import { getMapFromDB } from "@/lib/getMapFromDB";
 import { createStreamUnmasker } from "@/lib/core/streamUnmask";
-import redis from "@/lib/redis";
 
 export async function POST(req: Request) {
-  const sessionId = req.headers.get("x-session-id");
+  const key = await validateApiKey(req);
+  if (!key) return new Response("Unauthorized", { status: 401 });
 
-  if (!sessionId) {
-    return new Response("x-session-id header is required", { status: 400 });
-  }
+  // need a sample of the text upfront to extract tokens
+  const { text } = await req.json();
+  if (!text) return new Response("Missing 'text'", { status: 400 });
 
-  const raw = await redis.get(sessionId);
-  if (!raw) {
-    return new Response("session not found or expired", { status: 404 });
-  }
-
-  const map = JSON.parse(raw);
+  const map = await getMapFromDB(text, key.userId);
   const processChunk = createStreamUnmasker(map);
 
   const stream = new ReadableStream({
     async start(controller) {
-      const reader = req.body?.getReader();
-      if (!reader) { controller.close(); return; }
-
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
+      const chunkSize = 20;
+      for (let i = 0; i < text.length; i += chunkSize) {
+        const chunk = text.slice(i, i + chunkSize);
         const unmasked = processChunk(chunk);
         controller.enqueue(new TextEncoder().encode(unmasked));
       }
-
       controller.close();
     },
   });

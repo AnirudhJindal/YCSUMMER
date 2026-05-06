@@ -1,22 +1,14 @@
-import { NextResponse } from "next/server";
-import { unmask } from "@/lib/core/unmask";
-import redis from "@/lib/redis";
+import { validateApiKey } from "@/lib/auth";
+import { vaultUnmask } from "@/lib/vaultUnmask";
 
 export async function POST(req: Request) {
-  const body = await req.json();
-  const { text, sessionId } = body;
+  const key = await validateApiKey(req);
+  if (!key) return new Response("Unauthorized", { status: 401 });
 
-  if (!text || !sessionId) {
-    return NextResponse.json({ error: "text and sessionId are required" }, { status: 400 });
-  }
+  const { text } = await req.json();
+  if (!text || typeof text !== "string")
+    return new Response("Missing 'text'", { status: 400 });
 
-  const raw = await redis.get(sessionId);
-  if (!raw) {
-    return NextResponse.json({ error: "session not found or expired" }, { status: 404 });
-  }
-
-  const map = JSON.parse(raw);
-  const final = unmask(text, map);
-
-  return NextResponse.json({ final });
+  const result = await vaultUnmask(text, key.userId);
+  return Response.json({ text: result });
 }
