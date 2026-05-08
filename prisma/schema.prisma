@@ -7,73 +7,66 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/**
- * USER TABLE
- * One row per developer using your API
- */
 model User {
-  id          String   @id @default(uuid())
+  id         String   @id @default(uuid())
+  supabaseId String   @unique
+  email      String   @unique
+  createdAt  DateTime @default(now())
 
-  supabaseId  String   @unique
-
-  email       String   @unique
-
-  createdAt   DateTime @default(now())
-
-  apiKeys ApiKey[]
-
-  tokens TokenVault[]
-
-  logs AuditLog[]
+  apiKeys      ApiKey[]
+  tokens       TokenVault[]
+  logs         AuditLog[]
+  forcedValues UserForcedMaskValue[]
 }
 
-/**
- * API KEY TABLE
- * Used for authenticating requests
- */
 model ApiKey {
   id         String    @id @default(uuid())
   userId     String
   keyHash    String    @unique
-  name       String // "test", "prod"
+  name       String
   active     Boolean   @default(true)
   requests   Int       @default(0)
   lastUsedAt DateTime?
   createdAt  DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user         User                  @relation(fields: [userId], references: [id])
+  forcedValues UserForcedMaskValue[] // ✅ added
 }
 
-/**
- * TOKEN VAULT (CORE TABLE)
- * Maps token → encrypted real value
- */
 model TokenVault {
   id        String   @id @default(uuid())
-  token     String
+  token     String   @unique
   userId    String
-  realValue String // encrypted value
-  type      String // PHONE, EMAIL, BANK, etc
+  realValue String
+  type      String
   createdAt DateTime @default(now())
   lastUsed  DateTime
 
-  user User @relation(fields: [userId], references: [id])
+  user        User                 @relation(fields: [userId], references: [id])
+  forcedValue UserForcedMaskValue?
 
-  @@index([token, userId]) // 🔥 critical for fast lookup
+  @@index([token, userId])
 }
 
-/**
- * OPTIONAL (but recommended)
- * Track who accessed what
- */
 model AuditLog {
   id        String   @id @default(uuid())
   userId    String
   token     String
-  action    String // "mask" | "unmask"
+  action    String
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
 }
 
+model UserForcedMaskValue {
+  id        String   @id @default(uuid())
+  userId    String
+  keyId     String?  // ✅ null = all keys, set = specific key
+  label     String?
+  token     String   @unique
+  createdAt DateTime @default(now())
 
+  user  User        @relation(fields: [userId], references: [id])
+  key   ApiKey?     @relation(fields: [keyId], references: [id])
+  vault TokenVault  @relation(fields: [token], references: [token])
+}

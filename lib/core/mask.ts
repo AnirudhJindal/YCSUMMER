@@ -1,4 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
+import { prisma } from "@/lib/prisma";
+import { decrypt } from "@/lib/crypto";
 
 import { PATTERNS } from "../pattern/patterns";
 import {
@@ -95,8 +97,30 @@ function processSegment(segment: string, map: Record<string, string>) {
 
 /* ------------------ MAIN ------------------ */
 
-export function mask(text: string) {
+export async function mask(text: string, userId?: string, keyId?: string) {
   const map: Record<string, string> = {};
+
+  // ✅ pre-pass: scrub user forced values before algo runs
+  if (userId) {
+    const forcedValues = await prisma.userForcedMaskValue.findMany({
+      where: {
+        userId,
+        OR: [
+          { keyId: null },      // global — applies to all keys
+          { keyId: keyId ?? null }, // specific to this key
+        ],
+      },
+      include: { vault: true },
+    });
+
+    for (const fv of forcedValues) {
+      const realValue = decrypt(fv.vault.realValue);
+      if (text.includes(realValue)) {
+        map[fv.token] = realValue;
+        text = text.replaceAll(realValue, fv.token);
+      }
+    }
+  }
 
   const segments = splitIntoSegments(text);
   let masked = text;
@@ -150,7 +174,7 @@ export function mask(text: string) {
     return match;
   });
 
-  // PHONE (context-aware only)
+  // PHONE
   masked = masked.replace(PATTERNS.PHONE_GLOBAL, (match, offset) => {
     if (match.includes("__")) return match;
 
@@ -175,7 +199,7 @@ export function mask(text: string) {
     return token;
   });
 
-  // IFSC — fixed format, no context needed
+  // IFSC
   masked = masked.replace(/\b[A-Z]{4}0[A-Z0-9]{6}\b/g, (match) => {
     if (match.includes("__")) return match;
     if (!isIFSC(match)) return match;
@@ -185,7 +209,7 @@ export function mask(text: string) {
     return token;
   });
 
-  // PAN — fixed format, no context needed
+  // PAN
   masked = masked.replace(/\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b/g, (match) => {
     if (match.includes("__")) return match;
     if (!isPAN(match)) return match;
@@ -195,7 +219,7 @@ export function mask(text: string) {
     return token;
   });
 
-  // AADHAAR — needs context to avoid false positives
+  // AADHAAR
   masked = masked.replace(/\b[2-9][0-9]{11}\b/g, (match, offset) => {
     if (match.includes("__")) return match;
 
@@ -211,7 +235,7 @@ export function mask(text: string) {
     return token;
   });
 
-  // API KEYS — strong pattern, no context needed
+  // API KEYS
   masked = masked.replace(/\b(sk|pk|rk|key)[-_][A-Za-z0-9]{20,}\b/g, (match) => {
     if (match.includes("__")) return match;
 
@@ -220,7 +244,7 @@ export function mask(text: string) {
     return token;
   });
 
-  // CVV — needs context
+  // CVV
   masked = masked.replace(/\b\d{3,4}\b/g, (match, offset) => {
     if (match.includes("__")) return match;
 
@@ -236,7 +260,7 @@ export function mask(text: string) {
     return token;
   });
 
-  // EXPIRY — needs context, handles MM/YY and MM/YYYY
+  // EXPIRY
   masked = masked.replace(/(^|[\s,])(0[1-9]|1[0-2])[\/\-]([0-9]{2}|[0-9]{4})([\s,]|$)/g, (match, pre, month, year, post, offset) => {
     if (match.includes("__")) return match;
 

@@ -1,10 +1,10 @@
-import { validateApiKey } from "@/lib/auth";
+import { getDashboardUser } from "@/lib/dashboardAuth";
 import { generateApiKey } from "@/lib/apiKey";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
-  const key = await validateApiKey(req);
-  if (!key) return new Response("Unauthorized", { status: 401 });
+  const user = await getDashboardUser();
+  if (!user) return new Response("Unauthorized", { status: 401 });
 
   const { name } = await req.json();
   if (!name) return new Response("Missing name", { status: 400 });
@@ -12,11 +12,7 @@ export async function POST(req: Request) {
   const { raw, hash } = generateApiKey();
 
   await prisma.apiKey.create({
-    data: {
-      userId: key.userId,
-      keyHash: hash,
-      name,
-    },
+    data: { userId: user.id, keyHash: hash, name },
   });
 
   return Response.json({ apiKey: raw });

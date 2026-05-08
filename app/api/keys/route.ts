@@ -1,20 +1,13 @@
-import { validateApiKey } from "@/lib/auth";
+import { getDashboardUser } from "@/lib/dashboardAuth";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(req: Request) {
-  const key = await validateApiKey(req);
-  if (!key) return new Response("Unauthorized", { status: 401 });
+export async function GET() {
+  const user = await getDashboardUser();
+  if (!user) return new Response("Unauthorized", { status: 401 });
 
   const keys = await prisma.apiKey.findMany({
-    where: { userId: key.userId },
-    select: {
-      id: true,
-      name: true,
-      active: true,
-      requests: true,
-      lastUsedAt: true,
-      createdAt: true,
-    },
+    where: { userId: user.id },
+    select: { id: true, name: true, active: true, requests: true, lastUsedAt: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
 
