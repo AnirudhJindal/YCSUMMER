@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
+import redis from "@/lib/redis";
 
 import { PATTERNS } from "../pattern/patterns";
 import {
@@ -31,23 +32,21 @@ import { splitIntoSegments } from "../privacy/utils/segment";
 function extractValues(text: string) {
   const allAtMatches: string[] = text.match(/\b[\w.-]+@[\w.-]+\b/g) ?? [];
 
-  const emailMatches = allAtMatches.filter(v => isEmail(v));
-  const upiMatches = allAtMatches.filter(v => isUPI(v));
+  const emailMatches = allAtMatches.filter((v) => isEmail(v));
+  const upiMatches = allAtMatches.filter((v) => isUPI(v));
 
   const otherMatches: string[] = (
     text.match(/(?<!\d)\d{4,6}(?!\d)|(?<!\d)\d{8,17}(?!\d)|\b[a-zA-Z0-9]{6,}\b/g) ?? []
   ).filter((v) => !allAtMatches.includes(v));
 
+  const blocked = new Set([
+    "email", "emails", "password", "passwords",
+    "otp", "account", "number", "numbers",
+    "another", "also", "call", "are", "kod",
+  ]);
+
   return [...emailMatches, ...upiMatches, ...otherMatches].filter((v) => {
-    const blocked = [
-      "email", "emails",
-      "password", "passwords",
-      "otp", "account",
-      "number", "numbers",
-      "another", "also",
-      "call", "are", "kod",
-    ];
-    if (blocked.includes(v.toLowerCase())) return false;
+    if (blocked.has(v.toLowerCase())) return false;
     if (matchKeyword(v.toLowerCase()) !== null) return false;
     return true;
   });
@@ -95,29 +94,62 @@ function processSegment(segment: string, map: Record<string, string>) {
   return masked;
 }
 
+/* ------------------ FORCED VALUES (CACHED) ------------------ */
+
+type ForcedValueCacheEntry = {
+  token: string;
+  realValue: string; // already decrypted
+};
+
+async function getForcedValues(
+  userId: string,
+  keyId?: string
+): Promise<ForcedValueCacheEntry[]> {
+  const cacheKey = `forced:${userId}:${keyId ?? "global"}`;
+
+  // Try Redis cache first
+  try {
+    const cached = await redis.get(cacheKey);
+    if (cached) return JSON.parse(cached) as ForcedValueCacheEntry[];
+  } catch {
+    // Redis miss or error — fall through to DB
+  }
+
+  // Fetch from DB
+  const forcedValues = await prisma.userForcedMaskValue.findMany({
+    where: {
+      userId,
+      OR: [{ keyId: null }, { keyId: keyId ?? null }],
+    },
+    include: { vault: true },
+  });
+
+  const result: ForcedValueCacheEntry[] = forcedValues.map((fv) => ({
+    token: fv.token,
+    realValue: decrypt(fv.vault.realValue),
+  }));
+
+  // Cache for 5 minutes (fire and forget)
+  redis
+    .set(cacheKey, JSON.stringify(result), "EX", 300)
+    .catch(() => {}); // don't block on cache write failure
+
+  return result;
+}
+
 /* ------------------ MAIN ------------------ */
 
 export async function mask(text: string, userId?: string, keyId?: string) {
   const map: Record<string, string> = {};
 
-  // ✅ pre-pass: scrub user forced values before algo runs
+  // Pre-pass: scrub user forced values (cached)
   if (userId) {
-    const forcedValues = await prisma.userForcedMaskValue.findMany({
-      where: {
-        userId,
-        OR: [
-          { keyId: null },      // global — applies to all keys
-          { keyId: keyId ?? null }, // specific to this key
-        ],
-      },
-      include: { vault: true },
-    });
+    const forcedValues = await getForcedValues(userId, keyId);
 
-    for (const fv of forcedValues) {
-      const realValue = decrypt(fv.vault.realValue);
+    for (const { token, realValue } of forcedValues) {
       if (text.includes(realValue)) {
-        map[fv.token] = realValue;
-        text = text.replaceAll(realValue, fv.token);
+        map[token] = realValue;
+        text = text.replaceAll(realValue, token);
       }
     }
   }
@@ -130,7 +162,7 @@ export async function mask(text: string, userId?: string, keyId?: string) {
     masked = masked.replace(segment, processed);
   }
 
-  // context fallback
+  // Context fallback
   masked = maskWithContext(masked, map);
 
   // EMAIL / UPI fallback
@@ -178,10 +210,7 @@ export async function mask(text: string, userId?: string, keyId?: string) {
   masked = masked.replace(PATTERNS.PHONE_GLOBAL, (match, offset) => {
     if (match.includes("__")) return match;
 
-    const context = masked
-      .slice(Math.max(0, offset - 20), offset)
-      .toLowerCase();
-
+    const context = masked.slice(Math.max(0, offset - 20), offset).toLowerCase();
     if (!/(phone|call|mobile|contact)/.test(context)) return match;
 
     const token = `__PHONE_${uuidv4()}__`;
@@ -223,10 +252,7 @@ export async function mask(text: string, userId?: string, keyId?: string) {
   masked = masked.replace(/\b[2-9][0-9]{11}\b/g, (match, offset) => {
     if (match.includes("__")) return match;
 
-    const context = masked
-      .slice(Math.max(0, offset - 30), offset)
-      .toLowerCase();
-
+    const context = masked.slice(Math.max(0, offset - 30), offset).toLowerCase();
     if (!/(aadhaar|aadhar|uid)/.test(context)) return match;
     if (!isAadhaar(match)) return match;
 
@@ -248,10 +274,7 @@ export async function mask(text: string, userId?: string, keyId?: string) {
   masked = masked.replace(/\b\d{3,4}\b/g, (match, offset) => {
     if (match.includes("__")) return match;
 
-    const context = masked
-      .slice(Math.max(0, offset - 20), offset)
-      .toLowerCase();
-
+    const context = masked.slice(Math.max(0, offset - 20), offset).toLowerCase();
     if (!/(cvv|cvc|csc)/.test(context)) return match;
     if (!isCVV(match)) return match;
 
@@ -261,20 +284,21 @@ export async function mask(text: string, userId?: string, keyId?: string) {
   });
 
   // EXPIRY
-  masked = masked.replace(/(^|[\s,])(0[1-9]|1[0-2])[\/\-]([0-9]{2}|[0-9]{4})([\s,]|$)/g, (match, pre, month, year, post, offset) => {
-    if (match.includes("__")) return match;
+  masked = masked.replace(
+    /(^|[\s,])(0[1-9]|1[0-2])[\/\-]([0-9]{2}|[0-9]{4})([\s,]|$)/g,
+    (match, pre, month, year, post, offset) => {
+      if (match.includes("__")) return match;
 
-    const actualValue = `${month}/${year}`;
-    const contextStart = Math.max(0, offset - 30);
-    const context = masked.slice(contextStart, offset).toLowerCase();
+      const actualValue = `${month}/${year}`;
+      const context = masked.slice(Math.max(0, offset - 30), offset).toLowerCase();
+      if (!/(expiry|expiration|expires|valid till|valid thru|exp)/.test(context)) return match;
+      if (!isExpiry(actualValue)) return match;
 
-    if (!/(expiry|expiration|expires|valid till|valid thru|exp)/.test(context)) return match;
-    if (!isExpiry(actualValue)) return match;
-
-    const token = `__EXPIRY_${uuidv4()}__`;
-    map[token] = actualValue;
-    return `${pre}${token}${post}`;
-  });
+      const token = `__EXPIRY_${uuidv4()}__`;
+      map[token] = actualValue;
+      return `${pre}${token}${post}`;
+    }
+  );
 
   return { masked, map };
 }

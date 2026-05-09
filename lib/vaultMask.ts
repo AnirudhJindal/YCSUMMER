@@ -12,45 +12,91 @@ export async function vaultMask(text: string, userId: string, keyId?: string) {
   const { masked, map } = await mask(text, userId, keyId);
   const entries = Object.entries(map);
 
+  if (entries.length === 0) return masked;
+
+  // Step 1: Compute all hashes upfront
+  const hashed = entries.map(([token, value]) => ({
+    token,
+    value,
+    valueHash: hashValue(value),
+  }));
+
+  // Step 2: Batch fetch all existing vault entries in ONE query
+  const existingEntries = await prisma.tokenVault.findMany({
+    where: {
+      userId,
+      valueHash: { in: hashed.map((h) => h.valueHash) },
+    },
+  });
+
+  const existingMap = new Map(existingEntries.map((e) => [e.valueHash, e]));
+
+  // Step 3: Separate into creates and updates
+  const toCreate: typeof hashed = [];
+  const toUpdate: { id: string; token: string; value: string }[] = [];
+  const tokenRemaps: { oldToken: string; newToken: string }[] = [];
+
+  for (const { token, value, valueHash } of hashed) {
+    const existing = existingMap.get(valueHash);
+    if (existing) {
+      toUpdate.push({ id: existing.id, token: existing.token, value });
+      tokenRemaps.push({ oldToken: token, newToken: existing.token });
+    } else {
+      toCreate.push({ token, value, valueHash });
+    }
+  }
+
+  // Step 4: Apply token remaps to masked text
   let finalMasked = masked;
+  for (const { oldToken, newToken } of tokenRemaps) {
+    finalMasked = finalMasked.replaceAll(oldToken, newToken);
+  }
 
-  if (entries.length > 0) {
-    const finalMap: Record<string, string> = {};
-
-    for (const [token, value] of entries) {
-      const valueHash = hashValue(value);
-
-      const existing = await prisma.tokenVault.findFirst({
-        where: { userId, valueHash },
-      });
-
-      if (existing) {
-        finalMasked = finalMasked.replaceAll(token, existing.token);
-        finalMap[existing.token] = value;
-
-        await prisma.tokenVault.update({
-          where: { id: existing.id },
+  // Step 5: Run all DB writes and Redis sets in parallel
+  await Promise.all([
+    // Batch update lastUsed for existing tokens
+    toUpdate.length > 0
+      ? prisma.tokenVault.updateMany({
+          where: { id: { in: toUpdate.map((u) => u.id) } },
           data: { lastUsed: new Date() },
-        });
-        await redis.set(`vault:${userId}:${existing.token}`, value, "EX", 3600);
-      } else {
-        finalMap[token] = value;
-        await prisma.tokenVault.create({
-          data: {
+        })
+      : Promise.resolve(),
+
+    // Batch create new tokens
+    toCreate.length > 0
+      ? prisma.tokenVault.createMany({
+          data: toCreate.map(({ token, value, valueHash }) => ({
             token,
             userId,
             realValue: encrypt(value),
             valueHash,
             type: token.split("_")[2] || "GENERIC",
             lastUsed: new Date(),
-          },
-        });
-        await redis.set(`vault:${userId}:${token}`, value, "EX", 3600);
-      }
-    }
+          })),
+          skipDuplicates: true,
+        })
+      : Promise.resolve(),
 
+    // Batch Redis sets for existing tokens
+    ...toUpdate.map(({ token, value }) =>
+      redis.set(`vault:${userId}:${token}`, value, "EX", 3600)
+    ),
+
+    // Batch Redis sets for new tokens
+    ...toCreate.map(({ token, value }) =>
+      redis.set(`vault:${userId}:${token}`, value, "EX", 3600)
+    ),
+  ]);
+
+  // Step 6: Audit log — batch insert all at once
+  const allTokens = [
+    ...toUpdate.map((u) => u.token),
+    ...toCreate.map((c) => c.token),
+  ];
+
+  if (allTokens.length > 0) {
     await prisma.auditLog.createMany({
-      data: Object.keys(finalMap).map((token) => ({
+      data: allTokens.map((token) => ({
         userId,
         token,
         action: "mask",
