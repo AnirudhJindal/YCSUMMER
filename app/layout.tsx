@@ -20,7 +20,7 @@ const annie = Annie_Use_Your_Telescope({
 });
 
 export const metadata: Metadata = {
-  title: "Vaultit",
+  title: "Vault.",
   description: "Privacy layer for LLMs",
 };
 

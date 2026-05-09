@@ -2,6 +2,11 @@ import { getDashboardUser } from "@/lib/dashboardAuth";
 import { prisma } from "../../../lib/prisma";
 import { encrypt } from "../../../lib/crypto";
 import { v4 as uuidv4 } from "uuid";
+import crypto from "crypto";
+
+function hashValue(val: string) {
+  return crypto.createHash("sha256").update(val).digest("hex");
+}
 
 export async function GET() {
   const user = await getDashboardUser();
@@ -33,7 +38,6 @@ export async function POST(req: Request) {
   const { value, label, keyId } = await req.json();
   if (!value) return new Response("Missing value", { status: 400 });
 
-  // validate keyId belongs to this user if provided
   if (keyId) {
     const key = await prisma.apiKey.findUnique({
       where: { id: keyId, userId: user.id },
@@ -42,23 +46,36 @@ export async function POST(req: Request) {
   }
 
   const token = `__FORCED_${uuidv4()}__`;
+  const valueHash = hashValue(value);
 
-  await prisma.tokenVault.create({
-    data: {
-      token,
-      userId: user.id,
-      realValue: encrypt(value),
-      type: "FORCED",
-      lastUsed: new Date(),
-    },
+  const existing = await prisma.tokenVault.findFirst({
+    where: { userId: user.id, valueHash },
   });
+
+  if (existing) {
+    await prisma.tokenVault.update({
+      where: { id: existing.id },
+      data: { lastUsed: new Date() },
+    });
+  } else {
+    await prisma.tokenVault.create({
+      data: {
+        token,
+        userId: user.id,
+        realValue: encrypt(value),
+        valueHash,
+        type: "FORCED",
+        lastUsed: new Date(),
+      },
+    });
+  }
 
   await prisma.userForcedMaskValue.create({
     data: {
       userId: user.id,
       keyId: keyId || null,
       label: label || null,
-      token,
+      token: existing ? existing.token : token,
     },
   });
 
@@ -79,7 +96,15 @@ export async function DELETE(req: Request) {
   if (!forcedValue) return new Response("Not found", { status: 404 });
 
   await prisma.userForcedMaskValue.delete({ where: { id } });
-  await prisma.tokenVault.delete({ where: { token: forcedValue.token } });
+
+  // Only delete vault entry if no other forced values reference the same token
+  const otherRefs = await prisma.userForcedMaskValue.count({
+    where: { token: forcedValue.token },
+  });
+
+  if (otherRefs === 0) {
+    await prisma.tokenVault.deleteMany({ where: { token: forcedValue.token } });
+  }
 
   return Response.json({ success: true });
 }

@@ -18,7 +18,7 @@ export default function NotFound() {
     >
       {/* Logo */}
       <div style={{ fontSize: 22, letterSpacing: "-0.01em", marginBottom: 48, opacity: 0.5 }}>
-        Vaultit
+        Vault.
       </div>
 
       {/* Main text */}

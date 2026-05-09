@@ -12,7 +12,7 @@ export default function Navbar() {
     >
       {/* LOGO */}
       <a href="/" className="text-xl font-light tracking-[-0.04em] scale-x-[1.05] hover:scale-115 transition-all no-underline text-white">
-        Vaultit
+        Vault.
       </a>
 
       {/* NAV LINKS */}

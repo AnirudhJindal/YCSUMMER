@@ -151,7 +151,7 @@ export default function Features() {
                   transition={{ duration: 2, repeat: Infinity }}
                   style={{ fontFamily: "monospace", fontSize: 11 }}
                 >
-                  vaultit masks
+                  vault. masks
                 </motion.span>
 
                 <div style={{ flex: 1, height: 1, background: "#d6d3d1" }} />

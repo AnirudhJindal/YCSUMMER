@@ -7,7 +7,7 @@ const steps = [
     number: "01",
     title: "Intercept your prompt",
     description:
-      "The user's plain-text instruction is intercepted before it leaves your server. Vaultit scans it and masks every piece of sensitive information inline.",
+      "The user's plain-text instruction is intercepted before it leaves your server. Vault. scans it and masks every piece of sensitive information inline.",
     code: [
       { text: "// Raw user instruction — PII fully exposed\n", color: "#6a9955" },
       { text: "const ", color: "#569cd6" },
@@ -77,7 +77,7 @@ const steps = [
     number: "04",
     title: "Restore, then execute",
     description:
-      "Before the agent runs, Vaultit swaps every token back to its real value. The agent receives clean, complete data — and executes with full fidelity.",
+      "Before the agent runs, Vault. swaps every token back to its real value. The agent receives clean, complete data — and executes with full fidelity.",
     code: [
       { text: "// Unmask the LLM's JSON before execution\n", color: "#6a9955" },
       { text: "const ", color: "#569cd6" },

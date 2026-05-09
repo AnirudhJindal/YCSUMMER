@@ -12,6 +12,8 @@ export async function vaultMask(text: string, userId: string, keyId?: string) {
   const { masked, map } = await mask(text, userId, keyId);
   const entries = Object.entries(map);
 
+  let finalMasked = masked;
+
   if (entries.length > 0) {
     const finalMap: Record<string, string> = {};
 
@@ -23,7 +25,9 @@ export async function vaultMask(text: string, userId: string, keyId?: string) {
       });
 
       if (existing) {
+        finalMasked = finalMasked.replaceAll(token, existing.token);
         finalMap[existing.token] = value;
+
         await prisma.tokenVault.update({
           where: { id: existing.id },
           data: { lastUsed: new Date() },
@@ -37,7 +41,7 @@ export async function vaultMask(text: string, userId: string, keyId?: string) {
             userId,
             realValue: encrypt(value),
             valueHash,
-            type: token.split("_")[1] || "GENERIC",
+            type: token.split("_")[2] || "GENERIC",
             lastUsed: new Date(),
           },
         });
@@ -54,5 +58,5 @@ export async function vaultMask(text: string, userId: string, keyId?: string) {
     });
   }
 
-  return masked;
+  return finalMasked;
 }

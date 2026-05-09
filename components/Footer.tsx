@@ -212,7 +212,7 @@ export default function Footer() {
             }}
           >
             <p style={{ fontSize: 13, color: "#57534e", margin: 0 }}>
-              {"© 2025 Vaultit. All rights reserved."}
+              {"© 2025 Vault. All rights reserved."}
             </p>
 
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
