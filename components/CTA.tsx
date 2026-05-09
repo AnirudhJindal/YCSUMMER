@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState, useEffect } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
-
+import { useRouter } from "next/navigation";
 function RoughBorder({ id, stroke = "#1c1917" }: { id: string; stroke?: string }) {
   return (
     <svg
@@ -35,6 +35,17 @@ function RoughBorder({ id, stroke = "#1c1917" }: { id: string; stroke?: string }
 }
 
 export default function WaitlistCTA() {
+  const router = useRouter();
+
+  function handleJoin() {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+
+    router.push("/auth");
+  }
+
   const ref = useRef(null);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -193,12 +204,7 @@ export default function WaitlistCTA() {
 
           {/* ✅ UPDATED BUTTON */}
           <motion.button
-            onClick={() => {
-              window.scrollTo({
-                top: 0,
-                behavior: "smooth",
-              });
-            }}
+           onClick={handleJoin}
             whileHover={{ y: -4, scale: 1.02 }}
             whileTap={{ scale: 0.96 }}
             transition={{ type: "spring", stiffness: 300 }}
@@ -212,7 +218,7 @@ export default function WaitlistCTA() {
               cursor: "pointer",
             }}
           >
-            Join the waitlist →
+            StartNow
           </motion.button>
         </motion.div>
 

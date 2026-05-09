@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabse/client";
+
+
 import {
   LayoutDashboard,
   EyeOff,
-  Eye,
+  BookText,
   Key,
   FileText,
   Database,
-  Settings,
   BarChart3,
   LogOut,
 } from "lucide-react";
@@ -31,9 +33,9 @@ const items = [
     icon: EyeOff,
   },
   {
-    label: "Unmask",
-    href: "/dashboard/unmask",
-    icon: Eye,
+    label: "Docs",
+    href: "/Docs",
+    icon: BookText,
   },
   {
     label: "API Keys",
@@ -50,15 +52,24 @@ const items = [
     href: "/dashboard/logs",
     icon: FileText,
   },
-  {
-    label: "Settings",
-    href: "/dashboard/settings",
-    icon: Settings,
-  },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleSignOut() {
+    try {
+      const supabase = createClient();
+
+      await supabase.auth.signOut();
+
+      router.push("/");
+      router.refresh();
+    } catch (error) {
+      console.error("Sign out failed:", error);
+    }
+  }
 
   return (
     <aside className="w-[250px] border-r border-white/10 bg-white/5 backdrop-blur-xl p-6 flex flex-col">
@@ -69,7 +80,9 @@ export default function Sidebar() {
       <div className="space-y-2 flex-1">
         {items.map((item) => {
           const Icon = item.icon;
-          const active = pathname === item.href;
+
+          const active =
+            pathname === item.href;
 
           return (
             <Link
@@ -88,7 +101,10 @@ export default function Sidebar() {
         })}
       </div>
 
-      <button className="mt-auto flex items-center gap-3 text-red-400/70 hover:text-red-400 transition-all px-4 py-3 rounded-xl hover:bg-red-500/10">
+      <button
+        onClick={handleSignOut}
+        className="mt-auto flex items-center gap-3 text-red-400/70 hover:text-red-400 transition-all px-4 py-3 rounded-xl hover:bg-red-500/10"
+      >
         <LogOut size={18} />
         Sign out
       </button>

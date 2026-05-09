@@ -38,7 +38,7 @@ const links = {
     { label: "Features", href: "/features" },
     { label: "Pricing", href: "/pricing" },
     { label: "Changelog", href: "/changelog" },
-    { label: "Docs", href: "/docs" },
+    { label: "Docs", href: "/Docs" },
   ],
   Company: [
     { label: "About", href: "/about" },
@@ -141,7 +141,7 @@ export default function Footer() {
               <div style={{ position: "relative", display: "inline-block" }}>
                 <RoughBorder id="footer-cta" stroke="#f5f3ef40" />
                 <a 
-                  href="#"
+                  href="/auth"
                   style={{
                     display: "inline-block",
                     padding: "10px 24px",
@@ -152,7 +152,7 @@ export default function Footer() {
                     letterSpacing: "0.02em",
                   }}
                 >
-                  {"Join the waitlist ->"}
+                  {"Start Now ->"}
                 </a>
               </div>
             </div>

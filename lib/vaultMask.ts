@@ -2,29 +2,51 @@ import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/crypto";
 import { mask } from "@/lib/core/mask";
 import redis from "@/lib/redis";
+import crypto from "crypto";
+
+function hashValue(value: string) {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
 
 export async function vaultMask(text: string, userId: string, keyId?: string) {
-  const { masked, map } = await mask(text, userId, keyId); // ✅ pass keyId
+  const { masked, map } = await mask(text, userId, keyId);
   const entries = Object.entries(map);
 
   if (entries.length > 0) {
-    await prisma.tokenVault.createMany({
-      data: entries.map(([token, value]) => ({
-        token,
-        realValue: encrypt(value),
-        type: token.split("_")[1] || "GENERIC",
-        userId,
-        lastUsed: new Date(),
-      })),
-      skipDuplicates: true,
-    });
+    const finalMap: Record<string, string> = {};
 
     for (const [token, value] of entries) {
-      await redis.set(`vault:${userId}:${token}`, value, "EX", 3600);
+      const valueHash = hashValue(value);
+
+      const existing = await prisma.tokenVault.findFirst({
+        where: { userId, valueHash },
+      });
+
+      if (existing) {
+        finalMap[existing.token] = value;
+        await prisma.tokenVault.update({
+          where: { id: existing.id },
+          data: { lastUsed: new Date() },
+        });
+        await redis.set(`vault:${userId}:${existing.token}`, value, "EX", 3600);
+      } else {
+        finalMap[token] = value;
+        await prisma.tokenVault.create({
+          data: {
+            token,
+            userId,
+            realValue: encrypt(value),
+            valueHash,
+            type: token.split("_")[1] || "GENERIC",
+            lastUsed: new Date(),
+          },
+        });
+        await redis.set(`vault:${userId}:${token}`, value, "EX", 3600);
+      }
     }
 
     await prisma.auditLog.createMany({
-      data: entries.map(([token]) => ({
+      data: Object.keys(finalMap).map((token) => ({
         userId,
         token,
         action: "mask",

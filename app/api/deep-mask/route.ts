@@ -1,14 +1,14 @@
 import { validateApiKey } from "@/lib/auth";
-import { vaultMask } from "@/lib/vaultMask";
+import { vaultMaskDeep } from "@/lib/vaultMaskDeep";
 
 export async function POST(req: Request) {
   const key = await validateApiKey(req);
   if (!key) return new Response("Unauthorized", { status: 401 });
 
   const body = await req.json();
-  if (!body.text) return new Response("Missing text", { status: 400 });
+  if (!body) return new Response("Missing body", { status: 400 });
 
-  const result = await vaultMask(body.text, key.userId, key.id);
+  const result = await vaultMaskDeep(body, key.userId, key.id); // ✅ keyId
 
-  return Response.json({ masked: result });
+  return Response.json(result);
 }

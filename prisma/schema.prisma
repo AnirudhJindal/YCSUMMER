@@ -30,7 +30,7 @@ model ApiKey {
   createdAt  DateTime  @default(now())
 
   user         User                  @relation(fields: [userId], references: [id])
-  forcedValues UserForcedMaskValue[] // ✅ added
+  forcedValues UserForcedMaskValue[]
 }
 
 model TokenVault {
@@ -38,6 +38,7 @@ model TokenVault {
   token     String   @unique
   userId    String
   realValue String
+  valueHash String   // ✅ added
   type      String
   createdAt DateTime @default(now())
   lastUsed  DateTime
@@ -46,6 +47,7 @@ model TokenVault {
   forcedValue UserForcedMaskValue?
 
   @@index([token, userId])
+  @@index([valueHash, userId]) // ✅ added
 }
 
 model AuditLog {
@@ -61,7 +63,7 @@ model AuditLog {
 model UserForcedMaskValue {
   id        String   @id @default(uuid())
   userId    String
-  keyId     String?  // ✅ null = all keys, set = specific key
+  keyId     String?
   label     String?
   token     String   @unique
   createdAt DateTime @default(now())

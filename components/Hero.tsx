@@ -1,6 +1,7 @@
 "use client";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { GridScan } from "@/components/ui/grid";
 
 /* ── Hand-drawn border component ── */
@@ -45,22 +46,8 @@ function RoughBorder({ id }: { id: string }) {
 }
 
 export default function Hero() {
-  const [email, setEmail] = useState("");
-  const [done, setDone] = useState(false);
   const [step, setStep] = useState(0);
-
-  // ✅ FIXED: moved here from wrong component
-  const handleJoin = async () => {
-    if (!email.includes("@")) return;
-
-    const res = await fetch("/api/waitlist", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-
-    if (res.ok || res.status === 409) setDone(true);
-  };
+  const router = useRouter();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -140,26 +127,12 @@ export default function Hero() {
             masked before they leave your server — restored in the response.
           </p>
 
-          {!done ? (
-            <div className="flex gap-2 max-w-sm">
-              <input
-                className="border border-border bg-white/80 backdrop-blur-sm px-4 py-2.5 rounded-md w-full text-sm outline-none focus:ring-1 focus:ring-blue-300 transition font-mono"
-                placeholder="work@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <button
-                onClick={handleJoin}
-                className="bg-blue-900 text-white px-5 py-2.5 rounded-md text-sm hover:bg-blue-800"
-              >
-                Join waitlist
-              </button>
-            </div>
-          ) : (
-            <motion.p className="text-blue-700 font-mono">
-              ✓ You're on the list
-            </motion.p>
-          )}
+          <button
+            onClick={() => router.push("/auth")}
+            className="bg-blue-900 text-white px-6 py-3 rounded-md text-sm hover:bg-blue-800 transition-colors font-mono"
+          >
+            Get started →
+          </button>
         </motion.div>
 
         {/* RIGHT */}
