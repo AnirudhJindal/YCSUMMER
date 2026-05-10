@@ -98,7 +98,7 @@ function processSegment(segment: string, map: Record<string, string>) {
 
 type ForcedValueCacheEntry = {
   token: string;
-  realValue: string; // already decrypted
+  realValue: string;
 };
 
 async function getForcedValues(
@@ -107,15 +107,16 @@ async function getForcedValues(
 ): Promise<ForcedValueCacheEntry[]> {
   const cacheKey = `forced:${userId}:${keyId ?? "global"}`;
 
-  // Try Redis cache first
   try {
     const cached = await redis.get(cacheKey);
+    console.log("CACHE HIT:", !!cached, "key:", cacheKey);
     if (cached) return JSON.parse(cached) as ForcedValueCacheEntry[];
-  } catch {
-    // Redis miss or error — fall through to DB
+  } catch (e) {
+    console.log("CACHE ERROR:", e);
   }
 
-  // Fetch from DB
+  console.log("DB HIT — fetching forced values");
+
   const forcedValues = await prisma.userForcedMaskValue.findMany({
     where: {
       userId,
@@ -132,7 +133,7 @@ async function getForcedValues(
   // Cache for 5 minutes (fire and forget)
   redis
     .set(cacheKey, JSON.stringify(result), "EX", 300)
-    .catch(() => {}); // don't block on cache write failure
+    .catch((e) => console.log("CACHE WRITE ERROR:", e));
 
   return result;
 }
