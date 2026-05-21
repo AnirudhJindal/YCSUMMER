@@ -50,7 +50,7 @@ export default function Navbar() {
 
         {/* NAV LINKS — hidden on mobile */}
         <div className="navbar-links flex gap-10 text-lg tracking-[-0.03em] text-white/60">
-          <a href="/dashboard/docs" className="hover:text-white hover:scale-115 transition-all no-underline text-white/60">
+          <a href="/dashboard/Docs" className="hover:text-white hover:scale-115 transition-all no-underline text-white/60">
             Docs
           </a>
           <a href="/pricing" className="hover:text-white hover:scale-115 transition-all no-underline text-white/60">
