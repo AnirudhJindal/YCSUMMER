@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 
+const BASE_URLS = {
+  global: "https://ycsummer.vercel.app",
+  us: "https://ycsummer-us.vercel.app",
+};
+
 const ENDPOINTS = [
   {
     id: "mask",
@@ -9,16 +14,19 @@ const ENDPOINTS = [
     path: "/api/mask",
     description: "Mask sensitive values in a plain text string. Detected values are replaced with vault tokens.",
     headers: [
-      { name: "x-api-key", type: "string", required: true, description: "Your Vault API key" },
+      { name: "Authorization", type: "string", required: true, description: "Bearer <your_api_key> — e.g. Bearer pk_live_..." },
       { name: "Content-Type", type: "string", required: true, description: "application/json" },
     ],
     body: [
       { name: "text", type: "string", required: true, description: "The plain text string to mask" },
     ],
     response: `{\n  "masked": "My card is __CARD_a1b2c3__ and email is __EMAIL_d4e5f6__"\n}`,
-    curl: `curl -X POST https://yourdomain.com/api/mask \\\n  -H "x-api-key: YOUR_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"text": "My card is 4111111111111111 and email is john@gmail.com"}'`,
-    js: `const res = await fetch("https://yourdomain.com/api/mask", {\n  method: "POST",\n  headers: {\n    "x-api-key": "YOUR_API_KEY",\n    "Content-Type": "application/json",\n  },\n  body: JSON.stringify({\n    text: "My card is 4111111111111111 and email is john@gmail.com",\n  }),\n});\n\nconst { masked } = await res.json();`,
-    python: `import requests\n\nres = requests.post(\n  "https://yourdomain.com/api/mask",\n  headers={\n    "x-api-key": "YOUR_API_KEY",\n    "Content-Type": "application/json",\n  },\n  json={"text": "My card is 4111111111111111 and email is john@gmail.com"},\n)\n\nmasked = res.json()["masked"]`,
+    curl: (base: string) =>
+      `curl -X POST ${base}/api/mask \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"text": "My card is 4111111111111111 and email is john@gmail.com"}'`,
+    js: (base: string) =>
+      `const res = await fetch("${base}/api/mask", {\n  method: "POST",\n  headers: {\n    "Authorization": "Bearer YOUR_API_KEY",\n    "Content-Type": "application/json",\n  },\n  body: JSON.stringify({\n    text: "My card is 4111111111111111 and email is john@gmail.com",\n  }),\n});\n\nconst { masked } = await res.json();`,
+    python: (base: string) =>
+      `import requests\n\nres = requests.post(\n  "${base}/api/mask",\n  headers={\n    "Authorization": "Bearer YOUR_API_KEY",\n    "Content-Type": "application/json",\n  },\n  json={"text": "My card is 4111111111111111 and email is john@gmail.com"},\n)\n\nmasked = res.json()["masked"]`,
   },
   {
     id: "unmask",
@@ -26,16 +34,19 @@ const ENDPOINTS = [
     path: "/api/unmask",
     description: "Restore original values from a string containing vault tokens.",
     headers: [
-      { name: "x-api-key", type: "string", required: true, description: "Your Vault API key" },
+      { name: "Authorization", type: "string", required: true, description: "Bearer <your_api_key> — e.g. Bearer pk_live_..." },
       { name: "Content-Type", type: "string", required: true, description: "application/json" },
     ],
     body: [
       { name: "text", type: "string", required: true, description: "The string containing vault tokens to unmask" },
     ],
     response: `{\n  "unmasked": "My card is 4111111111111111 and email is john@gmail.com"\n}`,
-    curl: `curl -X POST https://yourdomain.com/api/unmask \\\n  -H "x-api-key: YOUR_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"text": "My card is __CARD_a1b2c3__ and email is __EMAIL_d4e5f6__"}'`,
-    js: `const res = await fetch("https://yourdomain.com/api/unmask", {\n  method: "POST",\n  headers: {\n    "x-api-key": "YOUR_API_KEY",\n    "Content-Type": "application/json",\n  },\n  body: JSON.stringify({\n    text: "My card is __CARD_a1b2c3__ and email is __EMAIL_d4e5f6__",\n  }),\n});\n\nconst { unmasked } = await res.json();`,
-    python: `import requests\n\nres = requests.post(\n  "https://yourdomain.com/api/unmask",\n  headers={\n    "x-api-key": "YOUR_API_KEY",\n    "Content-Type": "application/json",\n  },\n  json={"text": "My card is __CARD_a1b2c3__ and email is __EMAIL_d4e5f6__"},\n)\n\nunmasked = res.json()["unmasked"]`,
+    curl: (base: string) =>
+      `curl -X POST ${base}/api/unmask \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"text": "My card is __CARD_a1b2c3__ and email is __EMAIL_d4e5f6__"}'`,
+    js: (base: string) =>
+      `const res = await fetch("${base}/api/unmask", {\n  method: "POST",\n  headers: {\n    "Authorization": "Bearer YOUR_API_KEY",\n    "Content-Type": "application/json",\n  },\n  body: JSON.stringify({\n    text: "My card is __CARD_a1b2c3__ and email is __EMAIL_d4e5f6__",\n  }),\n});\n\nconst { unmasked } = await res.json();`,
+    python: (base: string) =>
+      `import requests\n\nres = requests.post(\n  "${base}/api/unmask",\n  headers={\n    "Authorization": "Bearer YOUR_API_KEY",\n    "Content-Type": "application/json",\n  },\n  json={"text": "My card is __CARD_a1b2c3__ and email is __EMAIL_d4e5f6__"},\n)\n\nunmasked = res.json()["unmasked"]`,
   },
   {
     id: "mask-deep",
@@ -43,20 +54,24 @@ const ENDPOINTS = [
     path: "/api/mask-deep",
     description: "Recursively mask sensitive values inside any JSON object or array.",
     headers: [
-      { name: "x-api-key", type: "string", required: true, description: "Your Vault API key" },
+      { name: "Authorization", type: "string", required: true, description: "Bearer <your_api_key> — e.g. Bearer pk_live_..." },
       { name: "Content-Type", type: "string", required: true, description: "application/json" },
     ],
     body: [
       { name: "any", type: "object | array", required: true, description: "Any valid JSON — objects, arrays, nested structures" },
     ],
     response: `{\n  "masked": {\n    "name": "John",\n    "email": "__EMAIL_d4e5f6__",\n    "payment": {\n      "card": "__CARD_a1b2c3__",\n      "cvv": "__CVV_x7y8z9__"\n    }\n  }\n}`,
-    curl: `curl -X POST https://yourdomain.com/api/mask-deep \\\n  -H "x-api-key: YOUR_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"name":"John","email":"john@gmail.com","payment":{"card":"4111111111111111","cvv":"123"}}'`,
-    js: `const res = await fetch("https://yourdomain.com/api/mask-deep", {\n  method: "POST",\n  headers: {\n    "x-api-key": "YOUR_API_KEY",\n    "Content-Type": "application/json",\n  },\n  body: JSON.stringify({\n    name: "John",\n    email: "john@gmail.com",\n    payment: { card: "4111111111111111", cvv: "123" },\n  }),\n});\n\nconst { masked } = await res.json();`,
-    python: `import requests\n\nres = requests.post(\n  "https://yourdomain.com/api/mask-deep",\n  headers={\n    "x-api-key": "YOUR_API_KEY",\n    "Content-Type": "application/json",\n  },\n  json={\n    "name": "John",\n    "email": "john@gmail.com",\n    "payment": {"card": "4111111111111111", "cvv": "123"},\n  },\n)\n\nmasked = res.json()["masked"]`,
+    curl: (base: string) =>
+      `curl -X POST ${base}/api/mask-deep \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"name":"John","email":"john@gmail.com","payment":{"card":"4111111111111111","cvv":"123"}}'`,
+    js: (base: string) =>
+      `const res = await fetch("${base}/api/mask-deep", {\n  method: "POST",\n  headers: {\n    "Authorization": "Bearer YOUR_API_KEY",\n    "Content-Type": "application/json",\n  },\n  body: JSON.stringify({\n    name: "John",\n    email: "john@gmail.com",\n    payment: { card: "4111111111111111", cvv: "123" },\n  }),\n});\n\nconst { masked } = await res.json();`,
+    python: (base: string) =>
+      `import requests\n\nres = requests.post(\n  "${base}/api/mask-deep",\n  headers={\n    "Authorization": "Bearer YOUR_API_KEY",\n    "Content-Type": "application/json",\n  },\n  json={\n    "name": "John",\n    "email": "john@gmail.com",\n    "payment": {"card": "4111111111111111", "cvv": "123"},\n  },\n)\n\nmasked = res.json()["masked"]`,
   },
 ];
 
 type Lang = "curl" | "js" | "python";
+type Region = "global" | "us";
 
 const METHOD_COLORS: Record<string, string> = {
   POST: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -157,9 +172,12 @@ type Endpoint = typeof ENDPOINTS[number];
 
 export default function DocsPage() {
   const [activeLang, setActiveLang] = useState<Lang>("curl");
+  const [activeRegion, setActiveRegion] = useState<Region>("global");
   const [copied, setCopied] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState("mask");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const baseUrl = BASE_URLS[activeRegion];
 
   function copy(text: string, id: string) {
     navigator.clipboard.writeText(text);
@@ -191,7 +209,6 @@ export default function DocsPage() {
       <div className="docs-nav-bar border-b border-black/8 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            {/* Mobile sidebar toggle */}
             <button
               className="docs-mobile-nav hidden text-black/40 hover:text-black mr-1"
               onClick={() => setSidebarOpen((v) => !v)}
@@ -202,18 +219,43 @@ export default function DocsPage() {
             <span className="text-black/20">/</span>
             <span className="text-sm text-black/40 font-medium">API Reference</span>
           </div>
-          <div className="flex items-center gap-2 bg-black/5 rounded-lg p-1">
-            {(Object.keys(LANG_LABELS) as Lang[]).map((lang) => (
-              <button
-                key={lang}
-                onClick={() => setActiveLang(lang)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  activeLang === lang ? "bg-white text-black shadow-sm" : "text-black/40 hover:text-black/70"
-                }`}
-              >
-                {LANG_LABELS[lang]}
-              </button>
-            ))}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Region switcher */}
+            <div className="flex items-center gap-1 bg-black/5 rounded-lg p-1">
+              {(["global", "us"] as Region[]).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setActiveRegion(r)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    activeRegion === r ? "bg-white text-black shadow-sm" : "text-black/40 hover:text-black/70"
+                  }`}
+                >
+                  {r === "us" ? (
+                    <>
+                      <span className="text-[10px]">🇺🇸</span> US
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-[10px]">🌐</span> Global
+                    </>
+                  )}
+                </button>
+              ))}
+            </div>
+            {/* Lang switcher */}
+            <div className="flex items-center gap-2 bg-black/5 rounded-lg p-1">
+              {(Object.keys(LANG_LABELS) as Lang[]).map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => setActiveLang(lang)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                    activeLang === lang ? "bg-white text-black shadow-sm" : "text-black/40 hover:text-black/70"
+                  }`}
+                >
+                  {LANG_LABELS[lang]}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -275,7 +317,7 @@ export default function DocsPage() {
             <p className="text-xs font-semibold text-black/30 uppercase tracking-widest mb-4">Authentication</p>
             <p className="text-xs text-black/50 leading-relaxed">
               All requests require an{" "}
-              <code className="bg-black/6 px-1.5 py-0.5 rounded text-black/70">x-api-key</code>{" "}
+              <code className="bg-black/6 px-1.5 py-0.5 rounded text-black/70">Authorization: Bearer YOUR_KEY</code>{" "}
               header.
             </p>
           </div>
@@ -283,17 +325,41 @@ export default function DocsPage() {
 
         {/* Main content */}
         <div className="flex flex-col gap-12 sm:gap-16 min-w-0">
+          {/* Header + Base URLs */}
           <div className="docs-header">
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">API Reference</h1>
-            <p className="text-black/50 text-base sm:text-lg leading-relaxed max-w-xl">
+            <p className="text-black/50 text-base sm:text-lg leading-relaxed max-w-xl mb-6">
               Vault lets you mask and unmask sensitive data in any string or JSON object.
             </p>
-            <div className="mt-5 flex items-center gap-3 bg-white border border-black/8 rounded-xl px-4 sm:px-5 py-3 w-fit flex-wrap">
-              <span className="text-xs font-semibold text-black/30 uppercase tracking-wider">Base URL</span>
-              <code className="text-sm text-black/70 break-all">https://ycsummer.vercel.app/</code>
-              <button onClick={() => copy("https://ycsummer.vercel.app/", "baseurl")} className="text-xs text-black/30 hover:text-black/60 transition-all">
-                {copied === "baseurl" ? "Copied!" : "Copy"}
-              </button>
+
+            {/* Base URL cards — one per region */}
+            <div className="flex flex-col gap-3">
+              <p className="text-xs font-semibold text-black/30 uppercase tracking-widest">Base URLs</p>
+              {/* Global */}
+              <div className="flex items-center gap-3 bg-white border border-black/8 rounded-xl px-4 sm:px-5 py-3 w-fit flex-wrap">
+                <span className="text-[10px] font-semibold text-black/30 bg-black/5 px-2 py-0.5 rounded uppercase tracking-wider">🌐 Global</span>
+                <code className="text-sm text-black/70 break-all">{BASE_URLS.global}</code>
+                <button
+                  onClick={() => copy(BASE_URLS.global, "baseurl-global")}
+                  className="text-xs text-black/30 hover:text-black/60 transition-all ml-auto"
+                >
+                  {copied === "baseurl-global" ? "✓ Copied" : "Copy"}
+                </button>
+              </div>
+              {/* US */}
+              <div className="flex items-center gap-3 bg-white border border-black/8 rounded-xl px-4 sm:px-5 py-3 w-fit flex-wrap">
+                <span className="text-[10px] font-semibold text-black/30 bg-black/5 px-2 py-0.5 rounded uppercase tracking-wider">🇺🇸 US</span>
+                <code className="text-sm text-black/70 break-all">{BASE_URLS.us}</code>
+                <button
+                  onClick={() => copy(BASE_URLS.us, "baseurl-us")}
+                  className="text-xs text-black/30 hover:text-black/60 transition-all ml-auto"
+                >
+                  {copied === "baseurl-us" ? "✓ Copied" : "Copy"}
+                </button>
+              </div>
+              <p className="text-xs text-black/40 mt-1">
+                Use the <span className="font-medium text-black/60">region switcher</span> in the top nav to toggle which URL appears in code examples.
+              </p>
             </div>
           </div>
 
@@ -305,7 +371,6 @@ export default function DocsPage() {
               </div>
               <p className="text-black/50 mb-6 sm:mb-8 leading-relaxed">{ep.description}</p>
 
-              {/* Two-col on desktop, single-col on mobile */}
               <div className="docs-endpoint-grid grid grid-cols-2 gap-6 min-w-0">
                 {/* Left — params */}
                 <div className="flex flex-col gap-6 min-w-0">
@@ -350,7 +415,7 @@ export default function DocsPage() {
                       <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-black/6">
                         <span className="text-xs text-black/30 font-medium">200 OK</span>
                         <button onClick={() => copy(ep.response, `res-${ep.id}`)} className="text-xs text-black/30 hover:text-black/60 transition-all">
-                          {copied === `res-${ep.id}` ? "Copied!" : "Copy"}
+                          {copied === `res-${ep.id}` ? "✓ Copied" : "Copy"}
                         </button>
                       </div>
                       <pre className="px-4 sm:px-5 py-4 text-xs text-black/60 overflow-x-auto leading-relaxed">{ep.response}</pre>
@@ -370,7 +435,7 @@ export default function DocsPage() {
                       <div className="flex items-center gap-3">
                         <span className="text-[11px] text-white/25 font-medium tracking-wide">{LANG_LABELS[activeLang]}</span>
                         <button
-                          onClick={() => copy(ep[activeLang], `code-${ep.id}`)}
+                          onClick={() => copy(ep[activeLang](baseUrl), `code-${ep.id}`)}
                           className="text-[11px] text-white/30 hover:text-white/70 transition-all"
                         >
                           {copied === `code-${ep.id}` ? "✓ Copied" : "Copy"}
@@ -379,7 +444,7 @@ export default function DocsPage() {
                     </div>
                     <div className="overflow-x-auto">
                       <pre className="px-4 sm:px-5 py-4 text-xs leading-relaxed whitespace-pre font-mono">
-                        <HighlightedCode code={ep[activeLang]} lang={activeLang} />
+                        <HighlightedCode code={ep[activeLang](baseUrl)} lang={activeLang} />
                       </pre>
                     </div>
                   </div>
