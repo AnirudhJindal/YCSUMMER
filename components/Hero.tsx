@@ -88,7 +88,6 @@ export default function Hero() {
           {/* LEFT */}
           <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
             <div className="text-xs border border-blue-200 bg-blue-50/80 px-3 py-1 rounded-full inline-flex items-center gap-2 mb-6 text-blue-700 backdrop-blur-sm font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
               Early access open
             </div>
 
@@ -102,7 +101,7 @@ export default function Hero() {
             </h1>
 
             <p
-              className="text-muted-foreground mb-8 max-w-sm"
+              className="text-muted-foreground mb-8 max-w-sm font-bold md:font-normal"
               style={{ fontSize: "clamp(15px, 1.3vw, 18px)", lineHeight: 1.7, letterSpacing: "0.02em" }}
             >
               A privacy layer between your AI agents and any LLM. Sensitive fields

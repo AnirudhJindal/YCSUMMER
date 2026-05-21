@@ -112,11 +112,14 @@ export default function RequestChart() {
   const maxVal = Math.max(...chartData.map((d) => d.raw), 1);
   const yMax = maxVal < LIMIT * 0.1 ? Math.max(maxVal * 4, 50) : LIMIT;
 
+  const totalRequests = chartData.reduce((s, d) => s + d.raw, 0);
+
   return (
     <div
-      className="relative rounded-3xl p-4 sm:p-6 overflow-hidden"
+      className="relative rounded-3xl overflow-hidden"
       style={{
-        height: "clamp(240px, 40vw, 320px)",
+        padding: "clamp(14px, 4vw, 24px)",
+        /* ↑ fluid padding so chart never gets clipped on narrow screens */
         background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)",
         border: "1px solid rgba(255,255,255,0.08)",
         backdropFilter: "blur(20px)",
@@ -133,23 +136,24 @@ export default function RequestChart() {
       />
 
       {/* Header */}
-      <div className="relative flex items-center justify-between mb-4 sm:mb-5">
+      <div className="relative flex items-center justify-between mb-4">
         <div>
           <h2 className="text-white text-sm font-semibold tracking-wide">Requests</h2>
           <p className="text-white/30 text-xs mt-0.5">Last 7 days</p>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2">
           <div
-            className="px-2 sm:px-3 py-1 rounded-full text-xs font-medium"
+            className="px-2.5 py-1 rounded-full text-xs font-medium"
             style={{
               background: "rgba(168,85,247,0.12)",
               border: "1px solid rgba(168,85,247,0.2)",
               color: "#c084fc",
             }}
           >
-            <span className="hidden sm:inline">{chartData.reduce((s, d) => s + d.raw, 0).toLocaleString()} / 5,000</span>
-            <span className="sm:hidden">{chartData.reduce((s, d) => s + d.raw, 0).toLocaleString()}</span>
+            {/* Show compact form on very small screens, full on sm+ */}
+            <span className="hidden sm:inline">{totalRequests.toLocaleString()} / 5,000</span>
+            <span className="sm:hidden">{totalRequests.toLocaleString()}</span>
           </div>
 
           <div className="relative flex items-center justify-center w-6 h-6">
@@ -165,39 +169,52 @@ export default function RequestChart() {
         </div>
       </div>
 
-      {/* Chart */}
-      <ResponsiveContainer width="100%" height="75%">
-        <BarChart data={chartData} barCategoryGap="28%">
-          <GradientDefs />
-          <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-          <XAxis
-            dataKey="name"
-            tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 500 }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis hide domain={[0, yMax]} />
-          <Tooltip
-            content={<CustomTooltip />}
-            cursor={{ fill: "rgba(168,85,247,0.05)", radius: 8 } as any}
-          />
-          <Bar dataKey="value" radius={[10, 10, 4, 4]} animationDuration={800} animationEasing="ease-out">
-            {chartData.map((entry, i) => (
-              <Cell
-                key={i}
-                fill={
-                  !entry.real
-                    ? "rgba(255,255,255,0.04)"
-                    : i === chartData.length - 1
-                    ? "url(#barGradientActive)"
-                    : "url(#barGradientInactive)"
-                }
-                style={entry.real && i === chartData.length - 1 ? { filter: "url(#glow)" } : {}}
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      {/*
+        Chart wrapper:
+        – On mobile: fixed height 180px so it doesn't collapse
+        – On sm+: scales with clamp for larger screens
+        The key fix is `minWidth: 0` on the wrapper so Recharts'
+        ResponsiveContainer can shrink below its natural content width.
+      */}
+      <div style={{ width: "100%", minWidth: 0, height: "clamp(160px, 38vw, 200px)" }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={chartData}
+            barCategoryGap="28%"
+            margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+            /* explicit margins prevent axis labels from being clipped */
+          >
+            <GradientDefs />
+            <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+            <XAxis
+              dataKey="name"
+              tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 500 }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis hide domain={[0, yMax]} />
+            <Tooltip
+              content={<CustomTooltip />}
+              cursor={{ fill: "rgba(168,85,247,0.05)", radius: 8 } as any}
+            />
+            <Bar dataKey="value" radius={[8, 8, 3, 3]} animationDuration={800} animationEasing="ease-out">
+              {chartData.map((entry, i) => (
+                <Cell
+                  key={i}
+                  fill={
+                    !entry.real
+                      ? "rgba(255,255,255,0.04)"
+                      : i === chartData.length - 1
+                      ? "url(#barGradientActive)"
+                      : "url(#barGradientInactive)"
+                  }
+                  style={entry.real && i === chartData.length - 1 ? { filter: "url(#glow)" } : {}}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
