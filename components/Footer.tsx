@@ -110,7 +110,7 @@ export default function Footer() {
             <p style={{ fontSize: 13, color: "#57534e", margin: 0 }}>{"© 2025 Vault. All rights reserved."}</p>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 6px #22c55e" }} />
-              <span style={{ fontSize: 13, color: "#57534e" }}>All systems operational</span>
+              <span style={{ fontSize: 13, color: "#57534e" }}></span>
             </div>
           </div>
         </div>

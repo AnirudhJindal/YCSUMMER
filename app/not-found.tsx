@@ -54,7 +54,7 @@ export default function NotFound() {
           background: "#22c55e",
           boxShadow: "0 0 6px #22c55e",
         }} />
-        <span style={{ fontSize: 13, color: "#57534e" }}>All systems operational</span>
+        <span style={{ fontSize: 13, color: "#57534e" }}></span>
       </div>
     </div>
   );
